@@ -17,3 +17,7 @@ lnpm, l stands for lazy, is a tool for lazy people for node project.
   - [ ] `dev:package`
   - [ ] `package+types`
 - [ ] info
+
+# License
+
+This repository is licensed under MIT License.
