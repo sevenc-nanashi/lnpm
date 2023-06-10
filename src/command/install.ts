@@ -1,4 +1,5 @@
 import { program } from "commander";
+import axios from "axios";
 import semver from "semver";
 import pacote from "pacote";
 import PackageJson from "@npmcli/package-json";
@@ -78,7 +79,9 @@ const resolvePackageVersion = async (
 const getDtsPackage = async (pkg: ResolvedPackage) => {
   const typesPackageName = toTypesPackageName(pkg.name);
   const typesPackage = `${typesPackageName}@~${pkg.version.major}`;
-  const typesPackageInfo = await pacote.manifest(typesPackage);
+  const typesPackageInfo = await pacote
+    .manifest(typesPackage)
+    .catch(() => undefined);
   if (!typesPackageInfo) {
     warn(`${pkg.name} is not typed, but ${typesPackageName} is not found`);
     return;
@@ -116,10 +119,11 @@ const addPackage = async (packages: string[]) => {
       return {
         name: pkg.name,
         isDev: pkg.isDev,
-        typed: await pacote
-          .manifest(`${pkg.name}@${version.raw}`)
+        typed: await axios
+          .get(`https://registry.npmjs.org/${pkg.name}/${version}`)
           .then((manifest) => {
-            return "types" in manifest || "typings" in manifest;
+            const { data } = manifest;
+            return "types" in data || "typings" in data;
           }),
         version,
       };
@@ -135,9 +139,6 @@ const addPackage = async (packages: string[]) => {
       ).then((packages) => packages.filter((pkg) => pkg) as ResolvedPackage[])
     : [];
 
-  info(
-    `Installing ${resolvedPackages.length} + ${typesPackages.length} types packages...`
-  );
   basePackageJson.update({
     dependencies: [...resolvedPackages]
       .filter((pkg) => !pkg.isDev)
@@ -155,14 +156,12 @@ const addPackage = async (packages: string[]) => {
     optionalDependencies: basePackageJson.content.optionalDependencies,
   });
   basePackageJson.save();
-
-  await runCommand({
-    npm: ["npm", "install"],
-    yarn: ["yarn", "install"],
-    pnpm: ["pnpm", "install"],
-  });
-  info(`Done!`);
-  for (const pkg of resolvedPackages) {
+  info(
+    `Installing ${resolvedPackages.length} + ${typesPackages.length} packages...`
+  );
+  for (const pkg of [...resolvedPackages].sort((a, b) =>
+    a.isDev === b.isDev ? a.name.localeCompare(b.name) : a.isDev ? 1 : -1
+  )) {
     const typesPackage = typesPackages.find(
       (typesPkg) => typesPkg.name === toTypesPackageName(pkg.name)
     );
@@ -176,6 +175,11 @@ const addPackage = async (packages: string[]) => {
       warn(`  ${pkg.name}@${pkg.version.raw} (not typed)`);
     }
   }
+  await runCommand({
+    npm: ["npm", "install"],
+    yarn: ["yarn", "install"],
+    pnpm: ["pnpm", "install"],
+  });
 };
 
 const install = async (packages: string[]) => {

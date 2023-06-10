@@ -2,7 +2,7 @@ import { PackageJson } from "@npmcli/package-json";
 import { spawn } from "child_process";
 import fs from "fs/promises";
 import path from "path";
-import { shell } from "./message";
+import { error, shell } from "./message";
 
 export const getPackageJsonDir = async (cwd: string) => {
   const splitPath = cwd.split(path.sep);
@@ -47,12 +47,13 @@ export const runCommand = async (
     cwd: dir,
     stdio: "inherit",
   });
-  await new Promise((resolve, reject) => {
+  return await new Promise((resolve) => {
     child.on("close", (code) => {
       if (code === 0) {
         resolve(undefined);
       } else {
-        reject(code);
+        error(`Command failed with exit code ${code}`);
+        process.exit(code ?? 1);
       }
     });
   });
