@@ -1,5 +1,5 @@
 {
-  "name": "lnpm",
+  "name": "@sevenc-nanashi/lnpm",
   "version": "1.0.0",
   "description": "npm for lazy people",
   "scripts": {
